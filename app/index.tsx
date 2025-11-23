@@ -51,7 +51,7 @@ export default function Index() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [checked, setChecked] = useState(false);
   return (
-    <View className="flex-1 items-center justify-center">
+    <View className="flex-1 items-center justify-center bg-red-600">
       <Link href={"/(drawer)"}>Drawer</Link>
       <Text>Edit app/index.tsx to edit this screen.</Text>
       <Button
@@ -148,7 +148,7 @@ export default function Index() {
         </ContextMenu>
       </Host>
 
-      <View>
+      <View className="mt-36">
         <CardStack
           data={images}
           initialIndex={1}
