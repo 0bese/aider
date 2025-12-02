@@ -1,4 +1,4 @@
-import { generateAPIUrl } from "@/lib/utils";
+import { buildMessageParts, generateAPIUrl, MessagePart } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { DefaultChatTransport } from "ai";
@@ -6,6 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import { fetch as expoFetch } from "expo/fetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,16 +16,19 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ContextMenu from "zeego/context-menu";
 import {
+  Attachment,
   Conversation,
   ConversationContent,
   Message,
   MessageAction,
   MessageActions,
+  MessageAttachments,
   MessageContent,
   PromptInput,
   PromptInputAttachmentButton,
   PromptInputAttachments,
   PromptInputBody,
+  PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
   Reasoning,
@@ -35,11 +39,11 @@ import {
   SourceContent,
   SourceTrigger,
   Suggestion,
-  Suggestions,
+  Suggestions
 } from "./ai-elements";
 
 // Types
-interface MessagePart {
+interface MessagePartData {
   type: string;
   text?: string;
   url?: string;
@@ -48,12 +52,14 @@ interface MessagePart {
   providerMetadata?: {
     duration?: number;
   };
+  mediaType?: string;
+  name?: string;
 }
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
-  parts: MessagePart[];
+  parts: MessagePartData[];
 }
 
 interface SourceData {
@@ -76,6 +82,7 @@ const COPY_FEEDBACK_DURATION = 500;
 export default function ChatPage() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -117,12 +124,42 @@ export default function ChatPage() {
     }
   }, [chatStatus]);
 
-  // Handlers
+  // Handler for sending messages with attachments
   const handleSendMessage = useCallback(
-    (text: string) => {
-      if (!text.trim()) return;
-      sendMessage({ text });
-      setInput("");
+    async (message: PromptInputMessage) => {
+      const { text = "", files = [] } = message;
+
+      // Don't send if both text and files are empty
+      if (!text.trim() && files.length === 0) return;
+
+      try {
+        setIsSubmitting(true);
+
+        // Build message parts from text and attachments
+        const parts: MessagePart[] = await buildMessageParts(text, files);
+
+        // Don't send if no parts were generated
+        if (parts.length === 0) return;
+
+        // Send message with parts
+        sendMessage({
+          role: "user",
+          parts,
+        });
+
+        // Clear input
+        setInput("");
+      } catch (error) {
+        console.error("Error sending message:", error);
+        Alert.alert(
+          "Error",
+          error instanceof Error
+            ? error.message
+            : "Failed to send message. Please try again."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
     },
     [sendMessage]
   );
@@ -145,27 +182,31 @@ export default function ChatPage() {
 
   const handleSuggestionClick = useCallback(
     (suggestion: string) => {
-      handleSendMessage(suggestion);
+      handleSendMessage({ text: suggestion, files: [] });
     },
     [handleSendMessage]
   );
 
   // Message content extractors
-  const extractSources = useCallback((parts: MessagePart[]): SourceData[] => {
-    return parts
-      .filter(
-        (part) => part.type === "source-url" || part.type === "source-document"
-      )
-      .map((part) => ({
-        href: part.type === "source-url" ? part.url : undefined,
-        title: part.title || "Source",
-        description: part.text,
-        sourceId: part.sourceId,
-      }));
-  }, []);
+  const extractSources = useCallback(
+    (parts: MessagePartData[]): SourceData[] => {
+      return parts
+        .filter(
+          (part) =>
+            part.type === "source-url" || part.type === "source-document"
+        )
+        .map((part) => ({
+          href: part.type === "source-url" ? part.url : undefined,
+          title: part.title || "Source",
+          description: part.text,
+          sourceId: part.sourceId,
+        }));
+    },
+    []
+  );
 
   const extractReasoning = useCallback(
-    (parts: MessagePart[]): ReasoningData | null => {
+    (parts: MessagePartData[]): ReasoningData | null => {
       const reasoningPart = parts.find((part) => part.type === "reasoning");
 
       if (reasoningPart) {
@@ -180,11 +221,23 @@ export default function ChatPage() {
     []
   );
 
-  const getTextContent = useCallback((parts: MessagePart[]): string => {
+  const getTextContent = useCallback((parts: MessagePartData[]): string => {
     return parts
       .filter((part) => part.type === "text")
       .map((part) => part.text || "")
       .join("");
+  }, []);
+
+  const extractAttachments = useCallback((parts: MessagePartData[]): Attachment[] => {
+    return parts
+      .filter((part) => part.type === "file" || part.type === "image")
+      .map((part, index) => ({
+        id: `att-${index}`,
+        name: part.name || "Attachment",
+        size: 0,
+        type: part.mediaType || "application/octet-stream",
+        uri: part.url || "",
+      }));
   }, []);
 
   // Render message content based on role
@@ -268,6 +321,12 @@ export default function ChatPage() {
         case "user":
           return (
             <View className="max-w-[80%]">
+              <View className="items-end max-w-[80%]">
+                <MessageAttachments
+                  attachments={extractAttachments(message.parts)}
+                  className="items-end"
+                />
+              </View>
               <ContextMenu.Root>
                 <ContextMenu.Trigger asChild className="shadow-white">
                   <MessageContent>
@@ -326,11 +385,13 @@ export default function ChatPage() {
     );
   }
 
+  const effectiveStatus = isSubmitting ? "submitted" : chatStatus;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-white"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      className="flex-1 bg-background"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 50 : 20}
     >
       <Conversation scrollRef={scrollRef}>
         <ConversationContent>
@@ -360,7 +421,7 @@ export default function ChatPage() {
           </Suggestions>
         )}
 
-        <PromptInput onSubmit={(msg) => handleSendMessage(msg.text!)} multiple>
+        <PromptInput onSubmit={handleSendMessage} multiple>
           <PromptInputAttachmentButton />
           <PromptInputBody>
             <View className="flex-1">
@@ -372,15 +433,16 @@ export default function ChatPage() {
                   onChangeText={setInput}
                   returnKeyType="send"
                   blurOnSubmit={false}
+                  editable={!isSubmitting}
                   onSubmitEditing={() => {
-                    if (input.trim() && chatStatus === "ready") {
-                      handleSendMessage(input);
+                    if (input.trim() && effectiveStatus === "ready") {
+                      handleSendMessage({ text: input, files: [] });
                     }
                   }}
                 />
                 <PromptInputSubmit
-                  status={chatStatus}
-                  disabled={!input.trim() || chatStatus !== "ready"}
+                  status={effectiveStatus}
+                  disabled={isSubmitting || effectiveStatus !== "ready"}
                   value={input.trim()}
                 />
               </View>

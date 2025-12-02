@@ -9,9 +9,10 @@ import {
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
+  console.error("message in backend", messages);
 
   const result = streamText({
-    model: google("gemini-2.5-flash"),
+    model: google("gemini-2.5-flash",),
     messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     experimental_transform: smoothStream({

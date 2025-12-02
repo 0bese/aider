@@ -42,17 +42,17 @@ import Animated, {
 import * as DropdownMenu from "zeego/dropdown-menu";
 
 /* ---------- TYPES ---------- */
-export interface PromptInputMessage {
-  text?: string;
-  files?: File[];
-}
-
 export interface Attachment {
   id: string;
   name: string;
   size: number;
   type: string;
   uri: string;
+}
+
+export interface PromptInputMessage {
+  text?: string;
+  files?: Attachment[];
 }
 
 type MessageRole = "user" | "assistant" | "system";
@@ -590,9 +590,23 @@ export const PromptInput = memo<{
       setAttachments((prev) => prev.filter((x) => x.id !== id));
     }, []);
 
+    // Enhanced onSubmit that includes attachments
+    const handleSubmit = useCallback(
+      (msg: PromptInputMessage) => {
+        // Pass both text and current attachments
+        onSubmit({
+          text: msg.text,
+          files: attachments,
+        });
+        // Clear attachments after sending
+        setAttachments([]);
+      },
+      [onSubmit, attachments]
+    );
+
     const value = useMemo(
       () => ({
-        onSubmit,
+        onSubmit: handleSubmit,
         multiple,
         globalDrop,
         attachments,
@@ -600,7 +614,7 @@ export const PromptInput = memo<{
         removeAttachment,
       }),
       [
-        onSubmit,
+        handleSubmit,
         multiple,
         globalDrop,
         attachments,
@@ -975,6 +989,86 @@ export const ImageBasic = memo<{
   }
 );
 ImageBasic.displayName = "ImageBasic";
+
+export const MessageAttachment = memo<{
+  data: Attachment;
+  className?: string;
+}>(({ data, className }) => {
+  const formattedSize = useMemo(() => {
+    if (data.size === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(data.size) / Math.log(k));
+    return `${parseFloat((data.size / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  }, [data.size]);
+
+  return (
+    <View
+      className={cn(
+        "flex-row items-center gap-2 rounded-lg bg-gray-100 dark:bg-neutral-800 px-3 py-2 w-full",
+        className
+      )}
+    >
+      <View className="h-8 w-8 items-center justify-center rounded bg-white dark:bg-neutral-700">
+        <Ionicons name="document-text-outline" size={16} color="#6B7280" />
+      </View>
+      <View className="flex-1">
+        <Text
+          className="text-sm font-medium text-gray-700 dark:text-gray-200"
+          numberOfLines={1}
+        >
+          {data.name}
+        </Text>
+        <Text className="text-xs text-gray-500">{formattedSize}</Text>
+      </View>
+    </View>
+  );
+});
+MessageAttachment.displayName = "MessageAttachment";
+
+export const MessageAttachments = memo<{
+  attachments: Attachment[];
+  className?: string;
+}>(({ attachments, className }) => {
+  if (!attachments || attachments.length === 0) return null;
+
+  const images = attachments.filter((a) => a.type.startsWith("image/"));
+  const files = attachments.filter((a) => !a.type.startsWith("image/"));
+
+  return (
+    <View className={cn("gap-2 mb-2", className)}>
+      {/* Images Grid */}
+      {images.length > 0 && (
+        <View
+          className={cn(
+            "flex-row flex-wrap gap-2",
+            className?.includes("items-end") && "justify-end"
+          )}
+        >
+          {images.map((image) => (
+            <ImageBasic
+              key={image.id}
+              uri={image.uri}
+              alt={image.name}
+              size="sm"
+              className="rounded-lg overflow-hidden"
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Files List */}
+      {files.length > 0 && (
+        <View className="gap-2">
+          {files.map((file) => (
+            <MessageAttachment key={file.id} data={file} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+});
+MessageAttachments.displayName = "MessageAttachments";
 
 /* ---------- CARD STACK COMPONENTS ---------- */
 const SCREEN_WIDTH = Dimensions.get("window").width;
