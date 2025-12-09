@@ -14,14 +14,13 @@ export default function StackLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        headerBlurEffect: "regular",
         headerShadowVisible: false,
-        // headerTransparent: ww
 
         headerRight: () => (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push("/(stack)/profile/2")}
+            className="flex items-center justify-center w-8 h-8"
           >
             <Ionicons
               name="person-circle-outline"
@@ -34,6 +33,7 @@ export default function StackLayout() {
           <TouchableOpacity
             onPress={() => nav.dispatch(DrawerActions.openDrawer())}
             activeOpacity={0.7}
+            className="flex items-center justify-center w-9 h-9"
           >
             <Svg
               width={24}
@@ -58,12 +58,16 @@ export default function StackLayout() {
         name="(chat)/index"
         options={{
           title: "New Chat",
+          headerTransparent: true,
+          headerBlurEffect: undefined,
         }}
       />
       <Stack.Screen
         name="(chat)/[id]"
         options={{
           title: "Chat",
+          headerTransparent: true,
+          headerBlurEffect: undefined,
         }}
       />
     </Stack>

@@ -1,19 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
-import {
-  BottomSheet,
-  ContextMenu,
-  Host,
-  HStack,
-  Picker,
-  Button as SwiftButton,
-  Text as SwiftText,
-  Switch,
-  VStack,
-} from "@expo/ui/swift-ui";
-import { cornerRadius, frame, padding } from "@expo/ui/swift-ui/modifiers";
 import { Link } from "expo-router";
-import { Camera } from "lucide-react-native";
 import React, { useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 // import { GLView } from 'expo-gl';
@@ -50,8 +37,9 @@ export default function Index() {
   const [checked, setChecked] = useState(false);
   return (
     <View className="flex-1 items-center justify-center">
-      <Link href={"/(drawer)"}>Drawer</Link>
-      <Link href={"/image-gen"} style={{ marginTop: 10, color: 'white', fontWeight: 'bold' }}>Go to Image Generation</Link>
+      <Link href={"/(drawer)"}><Text>Drawer</Text></Link>
+      <Link href={"/models"}><Text>Models</Text></Link>
+      <Link href={"/image-gen"} style={{ marginTop: 10, color: 'white', fontWeight: 'bold' }}><Text>Go to Image Generation</Text></Link>
       <Text>Edit app/index.tsx to edit this screen.</Text>
       <Button
         className="rounded-full"
@@ -62,107 +50,6 @@ export default function Index() {
         <Text> OPEN BOTTOM SHEET</Text>
       </Button>
 
-      {/* Place the sheet inside the same Host */}
-      <Host matchContents>
-        <BottomSheet
-          presentationDetents={[0.4, 0.6]}
-          isOpened={isOpened}
-          onIsOpenedChange={(next) => setIsOpened(next)}
-        >
-          <VStack spacing={8}>
-            <SwiftButton
-              variant="bordered"
-              onPress={() => {
-                console.log("pressed");
-                setIsOpened(false);
-              }}
-              modifiers={[
-                cornerRadius(12),
-                padding({ all: 20 }),
-                frame({ width: 112, height: 112 }), // ~30 % / 31 %
-              ]}
-              // systemImage="arrow.up.message"
-            >
-              <VStack alignment="center" spacing={8}>
-                {/* {icon} */}
-                <Camera color={"#a3a3a3"} />
-                <SwiftText color="secondary">Tester</SwiftText>
-              </VStack>
-            </SwiftButton>
-            <SwiftText>Hello, world!</SwiftText>
-            <HStack>
-              <SwiftButton
-                // modifiers={}
-                systemImage="d.circle.fill"
-                onPress={() => setIsOpened(false)}
-              >
-                Close
-              </SwiftButton>
-              <SwiftButton onPress={() => setIsOpened(false)}>
-                Close
-              </SwiftButton>
-            </HStack>
-          </VStack>
-        </BottomSheet>
-      </Host>
-
-      <Host style={{ width: 150, height: 50 }} matchContents>
-        <ContextMenu>
-          <ContextMenu.Items>
-            <SwiftButton
-              systemImage="person.crop.circle.badge.xmark"
-              onPress={() => console.log("Pressed1")}
-            >
-              Hello
-            </SwiftButton>
-            <SwiftButton
-              variant="bordered"
-              systemImage="plus.circle"
-              onPress={() => console.log("Pressed2")}
-            >
-              Love it
-            </SwiftButton>
-            <Picker
-              label="Doggos"
-              options={["very", "veery", "veeery", "much"]}
-              variant="menu"
-              selectedIndex={selectedIndex}
-              onOptionSelected={({ nativeEvent: { index } }) =>
-                setSelectedIndex(index)
-              }
-            />
-            <Switch
-              value={checked}
-              onValueChange={(checked) => {
-                setChecked(checked);
-              }}
-              color="#ff0000"
-              label="Play music"
-              variant="switch"
-            />
-          </ContextMenu.Items>
-          <ContextMenu.Trigger>
-            <SwiftButton variant="bordered">Show Menu</SwiftButton>
-          </ContextMenu.Trigger>
-        </ContextMenu>
-      </Host>
-
-      <View className="mt-36">
-        {/* <CardStack
-          data={images}
-          initialIndex={1}
-          cardDimensions={{ width: 210, height: 270 }}
-          renderItem={(item) => (
-            <View style={appStyles.imageCard}>
-              <Image
-                source={{ uri: item.img }}
-                style={appStyles.image}
-                contentFit="cover"
-              />
-            </View>
-          )}
-        /> */}
-      </View>
     </View>
   );
 }
